@@ -1,0 +1,152 @@
+// This is your Prisma schema file
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id            String    @id @default(uuid())
+  email         String    @unique
+  name          String
+  role          UserRole  @default(CUSTOMER)
+  phone         String?
+  orders        Order[]
+  deliveries    Delivery[] @relation("DeliveryAgent")
+  lastKnownLocation Json?  // Stores lat/long coordinates
+  preferredPlatform String? // WHATSAPP, TELEGRAM, etc.
+  isAvailable     Boolean  @default(true)
+  workingHours    Json?    // Store working hours schedule
+  maxWorkload     Int      @default(5) // Maximum concurrent deliveries
+  totalCollections Float     @default(0)  // Total cash collected historically
+  totalRemittances Float     @default(0)  // Total cash remitted historically
+  remittanceRating Float     @default(1)  // Rating based on remittance history (0-1)
+  fraudIncidents  Int        @default(0)  // Number of fraud incidents
+  isRestricted    Boolean    @default(false)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model Order {
+  id              String          @id @default(uuid())
+  orderNumber     String          @unique
+  customer        User            @relation(fields: [customerId], references: [id])
+  customerId      String
+  status          OrderStatus     @default(PENDING)
+  items           OrderItem[]
+  totalAmount     Float
+  paymentMethod   PaymentMethod
+  paymentStatus   PaymentStatus   @default(PENDING)
+  deliveryAddress String
+  deliveryLocation Json?          // Stores lat/long coordinates
+  deliveries      Delivery[]
+  fraudScore      Float?          @default(0)
+  platform        OrderPlatform
+  notes           String?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+}
+
+model OrderItem {
+  id          String    @id @default(uuid())
+  order       Order     @relation(fields: [orderId], references: [id])
+  orderId     String
+  productName String
+  quantity    Int
+  unitPrice   Float
+  totalPrice  Float
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model Delivery {
+  id              String          @id @default(uuid())
+  order           Order           @relation(fields: [orderId], references: [id])
+  orderId         String
+  agent           User            @relation("DeliveryAgent", fields: [agentId], references: [id])
+  agentId         String
+  status          DeliveryStatus  @default(ASSIGNED)
+  attemptCount    Int             @default(1)
+  scheduledTime   DateTime
+  completedTime   DateTime?
+  currentLocation Json?           // Stores current lat/long coordinates
+  lastLocationUpdate DateTime?    // Last time location was updated
+  estimatedArrival DateTime?     // ETA based on current location
+  delayMinutes    Int?           // Current delay in minutes
+  delayNotified   Boolean        @default(false)
+  humanIntervention Boolean      @default(false)
+  cashCollected   Float?         // Amount collected from customer
+  cashRemitted    Float?         // Amount remitted by delivery agent
+  remittanceTime  DateTime?      // When the cash was remitted
+  remittanceVerified Boolean     @default(false)
+  remittanceProof String?        // URL or reference to proof of remittance
+  fraudScore      Float?         @default(0)
+  fraudFlags      Json?          // Stores details of any fraud flags
+  restrictedUntil DateTime?      // If agent is restricted due to fraud suspicion
+  notes           String?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+}
+
+model AIInteraction {
+  id          String    @id @default(uuid())
+  type        String
+  content     String
+  metadata    Json?
+  createdAt   DateTime  @default(now())
+}
+
+enum UserRole {
+  ADMIN
+  CUSTOMER
+  DELIVERY_AGENT
+  SUPPORT
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  PROCESSING
+  READY_FOR_DELIVERY
+  IN_DELIVERY
+  DELIVERED
+  CANCELLED
+  RETURNED
+}
+
+enum PaymentMethod {
+  CASH_ON_DELIVERY
+  CREDIT_CARD
+  BANK_TRANSFER
+  DIGITAL_WALLET
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+}
+
+enum DeliveryStatus {
+  ASSIGNED
+  IN_PROGRESS
+  COMPLETED
+  FAILED
+  RESCHEDULED
+  DELIVERED_UNPAID     // New status
+  DELIVERED_PAID       // New status
+  PAYMENT_DISPUTED     // New status
+}
+
+enum OrderPlatform {
+  WHATSAPP
+  TELEGRAM
+  FACEBOOK
+  INSTAGRAM
+  SMS
+  WEB
+} 

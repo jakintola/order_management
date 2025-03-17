@@ -1,0 +1,16 @@
+[install]
+peer = true
+production = false
+optional = false
+exact = true
+
+[install.cache]
+dir = ".bun/cache"
+disable = false
+
+[test]
+coverage = true
+timeout = 10_000
+
+[debug]
+breakpoints = true 
